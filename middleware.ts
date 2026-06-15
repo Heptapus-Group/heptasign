@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedPrefixes = ["/dashboard", "/documents", "/admin"];
+const protectedPrefixes = ["/dashboard", "/documents", "/admin", "/account"];
 const COOKIE_NAME = "heptapus_session";
 
 export function middleware(request: NextRequest) {
@@ -19,5 +19,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/documents/:path*", "/admin/:path*"]
+  matcher: ["/dashboard/:path*", "/documents/:path*", "/admin/:path*", "/account/:path*"]
 };

@@ -8,8 +8,7 @@ import {
   DocumentsIcon,
   VerifyIcon,
   UsersIcon,
-  LogoutIcon,
-  HeptaMark
+  LogoutIcon
 } from "@/components/icons";
 
 type NavUser = {
@@ -83,8 +82,9 @@ function NavLinks({ user, onNavigate }: { user: NavUser; onNavigate?: () => void
 function Brand() {
   return (
     <Link href="/dashboard" className="flex items-center gap-2.5 px-5 py-5 text-white">
-      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white">
-        <HeptaMark className="h-5 w-5" />
+      <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-white">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Heptapus" className="h-6 w-6 object-contain" />
       </span>
       <span className="leading-tight">
         <span className="block text-[15px] font-semibold tracking-tight">HeptaSign</span>
@@ -94,17 +94,24 @@ function Brand() {
   );
 }
 
-function UserCard({ user }: { user: NonNullable<NavUser> }) {
+function UserCard({ user, onNavigate }: { user: NonNullable<NavUser>; onNavigate?: () => void }) {
   return (
     <div className="mt-auto border-t border-white/10 p-3">
-      <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-active text-xs font-semibold text-white">
-          {initials(user.name)}
-        </span>
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className="block truncate text-sm font-medium text-white">{user.name}</span>
-          <span className="block truncate text-xs text-sidebar-text">{user.title || user.role}</span>
-        </span>
+      <div className="flex items-center gap-2 rounded-lg px-1 py-1">
+        <Link
+          href="/account"
+          onClick={onNavigate}
+          title="Account settings"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1.5 py-1.5 transition hover:bg-sidebar-hover"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-active text-xs font-semibold text-white">
+            {initials(user.name)}
+          </span>
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="block truncate text-sm font-medium text-white">{user.name}</span>
+            <span className="block truncate text-xs text-sidebar-text">{user.title || user.role}</span>
+          </span>
+        </Link>
         <form action="/api/auth/logout" method="post">
           <button
             type="submit"
@@ -166,7 +173,7 @@ export function SideNav({ user }: { user: NavUser }) {
               </button>
             </div>
             <NavLinks user={user} onNavigate={() => setOpen(false)} />
-            {user ? <UserCard user={user} /> : null}
+            {user ? <UserCard user={user} onNavigate={() => setOpen(false)} /> : null}
           </aside>
         </div>
       ) : null}
