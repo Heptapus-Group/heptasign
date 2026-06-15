@@ -3,6 +3,7 @@ node_modules
 tsconfig.tsbuildinfo
 .env
 /logo.png
+*.tar
 storage/originals/*
 storage/signed/*
 !storage/originals/.gitkeep
