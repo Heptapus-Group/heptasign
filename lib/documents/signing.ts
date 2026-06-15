@@ -5,6 +5,7 @@ import { cryptoProvider } from "@/lib/crypto/provider";
 import { readStoredFile, saveSignedPdf } from "@/lib/files/storage";
 import { stampSignedPdf } from "@/lib/pdf/stamp";
 import { writeAuditLog } from "@/lib/audit/audit";
+import { isPaperlessEnabled, uploadSignedPdfToPaperless } from "@/lib/paperless/client";
 
 type SignInput = {
   documentId: string;
@@ -91,5 +92,88 @@ export async function signDocument(input: SignInput) {
     userAgent: input.userAgent
   });
 
+  await syncSignedDocumentToPaperless({
+    documentId: document.id,
+    documentCode: document.documentCode,
+    title: document.title,
+    signedPdf,
+    userId: input.userId,
+    ipAddress: input.ipAddress,
+    userAgent: input.userAgent
+  });
+
   return result;
+}
+
+export async function syncSignedDocumentToPaperless(input: {
+  documentId: string;
+  documentCode: string;
+  title: string;
+  signedPdf: Buffer;
+  userId: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}) {
+  if (!isPaperlessEnabled()) {
+    await prisma.document.update({
+      where: { id: input.documentId },
+      data: {
+        paperlessStatus: "DISABLED",
+        paperlessError: null,
+        paperlessSyncedAt: null
+      }
+    });
+    return;
+  }
+
+  try {
+    const upload = await uploadSignedPdfToPaperless({
+      pdf: input.signedPdf,
+      filename: `${input.documentCode}-signed.pdf`,
+      title: input.title,
+      documentCode: input.documentCode
+    });
+
+    if (upload.skipped) return;
+
+    await prisma.document.update({
+      where: { id: input.documentId },
+      data: {
+        paperlessStatus: "SYNCED",
+        paperlessTaskId: upload.taskId,
+        paperlessError: null,
+        paperlessSyncedAt: new Date()
+      }
+    });
+
+    await writeAuditLog({
+      userId: input.userId,
+      action: "paperless.synced",
+      entityType: "Document",
+      entityId: input.documentId,
+      metadata: { documentCode: input.documentCode, taskId: upload.taskId },
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Paperless sync failed.";
+    await prisma.document.update({
+      where: { id: input.documentId },
+      data: {
+        paperlessStatus: "FAILED",
+        paperlessError: message.slice(0, 1000),
+        paperlessSyncedAt: null
+      }
+    });
+
+    await writeAuditLog({
+      userId: input.userId,
+      action: "paperless.failed",
+      entityType: "Document",
+      entityId: input.documentId,
+      metadata: { documentCode: input.documentCode, error: message },
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent
+    });
+  }
 }

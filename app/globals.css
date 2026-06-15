@@ -2,33 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  box-sizing: border-box;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: none;
+  }
+
+  ::selection {
+    background: rgba(14, 124, 102, 0.18);
+  }
+
+  /* Refined scrollbars for scrollable panels */
+  .scroll-area {
+    scrollbar-width: thin;
+    scrollbar-color: #cdd2da transparent;
+  }
+  .scroll-area::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scroll-area::-webkit-scrollbar-thumb {
+    background: #cdd2da;
+    border-radius: 9999px;
+  }
+  .scroll-area::-webkit-scrollbar-thumb:hover {
+    background: #b3bac5;
+  }
 }
 
-body {
-  min-height: 100vh;
-  background:
-    linear-gradient(rgba(15, 23, 42, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.025) 1px, transparent 1px),
-    linear-gradient(180deg, #fbfefd 0%, #f6faf9 42%, #f4f7fb 100%);
-  background-size: 28px 28px, 28px 28px, auto;
-  color: #17202a;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  text-rendering: optimizeLegibility;
-}
-
-a {
-  color: inherit;
-}
-
-input,
-select,
-textarea,
-button {
-  font: inherit;
-}
-
-::selection {
-  background: rgba(15, 118, 110, 0.18);
+@layer utilities {
+  /* Tabular figures for numeric stats and hashes */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
 }

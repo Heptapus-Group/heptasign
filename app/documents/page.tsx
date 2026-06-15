@@ -3,6 +3,7 @@ import { DocumentStatus, Prisma } from "@prisma/client";
 import { AppShell } from "@/components/shell";
 import { Button, ButtonLink, Card, EmptyState, PageHeader, inputClass } from "@/components/ui";
 import { StatusBadge } from "@/components/status-badge";
+import { SearchIcon, PlusIcon, FileIcon } from "@/components/icons";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser } from "@/lib/auth/session";
 import { visibleDocumentWhere } from "@/lib/documents/access";
@@ -15,7 +16,9 @@ export default async function DocumentsPage({
   const user = await requireUser();
   const params = await searchParams;
   const q = params.q?.trim();
-  const status = Object.values(DocumentStatus).includes(params.status as DocumentStatus) ? (params.status as DocumentStatus) : undefined;
+  const status = Object.values(DocumentStatus).includes(params.status as DocumentStatus)
+    ? (params.status as DocumentStatus)
+    : undefined;
   const where: Prisma.DocumentWhereInput = {
     AND: [visibleDocumentWhere(user)],
     ...(status ? { status } : {}),
@@ -36,39 +39,78 @@ export default async function DocumentsPage({
       <PageHeader
         title="Documents"
         description="Find drafts, signed approvals, revoked records, and their verification metadata."
-        actions={<ButtonLink href="/documents/new">New Document</ButtonLink>}
+        actions={
+          <ButtonLink href="/documents/new" icon={<PlusIcon className="h-[18px] w-[18px]" />}>
+            New document
+          </ButtonLink>
+        }
       />
-      <form className="mb-5 flex flex-wrap gap-3 rounded-lg border border-line bg-white p-4 shadow-sm">
-        <input name="q" defaultValue={q} placeholder="Search by document code or title" className={`${inputClass} min-w-64 flex-1`} />
-        <select name="status" defaultValue={status || ""} className={`${inputClass} w-auto min-w-44`}>
+
+      <form className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-faint" />
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Search by document code or title"
+            className={`${inputClass} pl-10`}
+          />
+        </div>
+        <select name="status" defaultValue={status || ""} className={`${inputClass} sm:w-48`}>
           <option value="">All statuses</option>
-          {Object.values(DocumentStatus).map((item) => <option key={item} value={item}>{item}</option>)}
+          {Object.values(DocumentStatus).map((item) => (
+            <option key={item} value={item}>
+              {item.charAt(0) + item.slice(1).toLowerCase()}
+            </option>
+          ))}
         </select>
-        <Button variant="dark">Search</Button>
+        <Button variant="secondary">Search</Button>
       </form>
+
       <Card className="overflow-hidden">
         {documents.length === 0 ? (
-          <EmptyState title="No documents found" description="Try a different search, clear the status filter, or create a new document draft." action={<ButtonLink href="/documents/new">New Document</ButtonLink>} />
+          <EmptyState
+            icon={<FileIcon className="h-5 w-5" />}
+            title="No documents found"
+            description="Try a different search, clear the status filter, or create a new document draft."
+            action={
+              <ButtonLink href="/documents/new" icon={<PlusIcon className="h-[18px] w-[18px]" />}>
+                New document
+              </ButtonLink>
+            }
+          />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scroll-area">
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-muted">
-                <tr>
-                  <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3">Title</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Created</th>
-                  <th className="px-4 py-3">Signed</th>
+              <thead>
+                <tr className="border-b border-line text-[11px] uppercase tracking-wider text-faint">
+                  <th className="px-5 py-3 font-semibold">Code</th>
+                  <th className="px-5 py-3 font-semibold">Title</th>
+                  <th className="px-5 py-3 font-semibold">Status</th>
+                  <th className="px-5 py-3 font-semibold">Created</th>
+                  <th className="px-5 py-3 font-semibold">Signed</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {documents.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-semibold text-brand"><Link href={`/documents/${doc.id}`}>{doc.documentCode}</Link></td>
-                    <td className="px-4 py-3 font-medium text-ink">{doc.title}</td>
-                    <td className="px-4 py-3"><StatusBadge status={doc.status} /></td>
-                    <td className="px-4 py-3 text-muted">{doc.createdAt.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-muted">{doc.status === "SIGNED" ? doc.updatedAt.toLocaleString() : "-"}</td>
+                  <tr key={doc.id} className="transition hover:bg-canvas">
+                    <td className="px-5 py-3.5">
+                      <Link href={`/documents/${doc.id}`} className="font-mono text-[13px] font-semibold text-brand hover:underline">
+                        {doc.documentCode}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-3.5 font-medium text-ink">
+                      <Link href={`/documents/${doc.id}`} className="hover:underline">
+                        {doc.title}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <StatusBadge status={doc.status} />
+                    </td>
+                    <td className="px-5 py-3.5 text-muted tnum">{doc.createdAt.toLocaleDateString()}</td>
+                    <td className="px-5 py-3.5 text-muted tnum">
+                      {doc.status === "SIGNED" ? doc.updatedAt.toLocaleDateString() : "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

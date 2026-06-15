@@ -1,5 +1,5 @@
-import Image from "next/image";
-import { Alert, Button, Card, Field, inputClass } from "@/components/ui";
+import { Alert, Field, inputClass } from "@/components/ui";
+import { HeptaMark, LockIcon, ShieldIcon, CheckIcon } from "@/components/icons";
 
 export default async function LoginPage({
   searchParams
@@ -9,34 +9,81 @@ export default async function LoginPage({
   const params = await searchParams;
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-5 py-10">
-      <div className="w-full max-w-[440px]">
-        <div className="mb-7 text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-line bg-white shadow-lg shadow-slate-900/10">
-            <Image src="/logo.png" alt="Heptapus" width={64} height={64} className="h-16 w-16 object-contain" priority />
-          </div>
-          <h1 className="text-3xl font-semibold tracking-normal text-ink">HeptaSign</h1>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted">
-            Internal approval, signing, and document verification for Heptapus Group.
-          </p>
+    <main className="grid min-h-screen lg:grid-cols-2">
+      {/* Brand panel */}
+      <div className="relative hidden flex-col justify-between bg-sidebar p-12 text-white lg:flex">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand">
+            <HeptaMark className="h-6 w-6" />
+          </span>
+          <span className="text-lg font-semibold tracking-tight">HeptaSign</span>
         </div>
-        <Card className="overflow-hidden">
-          <div className="border-b border-line/80 bg-slate-50/70 px-7 py-5 text-center">
-            <h2 className="text-base font-semibold text-ink">Sign in to your workspace</h2>
-            <p className="mt-1 text-sm text-muted">Use your internal account credentials.</p>
+        <div className="max-w-md">
+          <h2 className="text-3xl font-semibold leading-tight tracking-tight">
+            Internal document approvals, signed and verifiable.
+          </h2>
+          <ul className="mt-8 space-y-4 text-sm text-sidebar-text">
+            {[
+              "Upload originals untouched, sign a stamped copy",
+              "QR + barcode verification by code or token",
+              "Full audit trail for every approval"
+            ].map((line) => (
+              <li key={line} className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand/20 text-brand">
+                  <CheckIcon className="h-3.5 w-3.5" />
+                </span>
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="text-xs text-sidebar-text">Heptapus Group · Internal use only</p>
+      </div>
+
+      {/* Form panel */}
+      <div className="flex items-center justify-center bg-canvas px-5 py-10">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 lg:hidden">
+            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand text-white">
+              <HeptaMark className="h-6 w-6" />
+            </span>
           </div>
-          <form action="/api/auth/login" method="post" className="space-y-4 p-7">
+          <div className="mb-7">
+            <h1 className="text-2xl font-semibold tracking-tight text-ink">Sign in</h1>
+            <p className="mt-1.5 text-sm text-muted">Use your Heptapus internal account.</p>
+          </div>
+          <form action="/api/auth/login" method="post" className="space-y-4">
             <input type="hidden" name="next" value={params.next || "/dashboard"} />
-            {params.error ? <Alert>Invalid email or password.</Alert> : null}
+            {params.error === "throttled" ? (
+              <Alert tone="warning">
+                <LockIcon className="h-4 w-4 shrink-0" />
+                Too many attempts. Please wait a few minutes and try again.
+              </Alert>
+            ) : params.error ? (
+              <Alert>
+                <ShieldIcon className="h-4 w-4 shrink-0" />
+                Invalid email or password.
+              </Alert>
+            ) : null}
             <Field label="Email">
-              <input name="email" type="email" required className={inputClass} autoComplete="email" />
+              <input name="email" type="email" autoComplete="username" required className={inputClass} />
             </Field>
             <Field label="Password">
-              <input name="password" type="password" required className={inputClass} autoComplete="current-password" />
+              <input name="password" type="password" autoComplete="current-password" required className={inputClass} />
             </Field>
-            <Button className="w-full">Login</Button>
+            <div className="pt-1">
+              <button
+                type="submit"
+                className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-brand text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark focus-visible:ring-4 focus-visible:ring-brand-ring"
+              >
+                Sign in
+              </button>
+            </div>
           </form>
-        </Card>
+          <p className="mt-8 text-center text-xs text-faint">
+            This is an internal approval tool, not a legally qualified e-signature system.
+          </p>
+        </div>
       </div>
     </main>
   );

@@ -106,9 +106,10 @@ function drawWrappedText(args: {
 function stampPageQr(args: {
   page: ReturnType<PDFDocument["getPages"]>[number];
   qrImage: Awaited<ReturnType<PDFDocument["embedPng"]>>;
+  logoImage: Awaited<ReturnType<PDFDocument["embedPng"]>> | null;
   font: Awaited<ReturnType<PDFDocument["embedFont"]>>;
 }) {
-  const { page, qrImage, font } = args;
+  const { page, qrImage, logoImage, font } = args;
   const { width, height } = page.getSize();
   const qrSize = 54;
   const margin = 18;
@@ -125,6 +126,25 @@ function stampPageQr(args: {
   });
 
   page.drawImage(qrImage, { x, y, width: qrSize, height: qrSize });
+  if (logoImage) {
+    const logoSize = qrSize * 0.16;
+    const logoX = x + qrSize / 2 - logoSize / 2;
+    const logoY = y + qrSize / 2 - logoSize / 2;
+    page.drawRectangle({
+      x: logoX - 1.5,
+      y: logoY - 1.5,
+      width: logoSize + 3,
+      height: logoSize + 3,
+      color: rgb(1, 1, 1),
+      opacity: 0.98
+    });
+    page.drawImage(logoImage, {
+      x: logoX,
+      y: logoY,
+      width: logoSize,
+      height: logoSize
+    });
+  }
   page.drawText("Doğrula", {
     x: x + 12,
     y: y - 11,
@@ -145,7 +165,7 @@ export async function stampSignedPdf(input: StampInput) {
   const barcodeImage = await pdf.embedPng(await generateCode128Png(input.documentCode));
 
   for (const existingPage of pdf.getPages()) {
-    stampPageQr({ page: existingPage, qrImage, font });
+    stampPageQr({ page: existingPage, qrImage, logoImage, font });
   }
 
   const page = pdf.addPage([595.28, 841.89]);
@@ -261,6 +281,25 @@ export async function stampSignedPdf(input: StampInput) {
     width: 128,
     height: 128
   });
+  if (logoImage) {
+    const logoSize = 20;
+    const logoX = qrX + 64 - logoSize / 2;
+    const logoY = qrY + 64 - logoSize / 2;
+    page.drawRectangle({
+      x: logoX - 3,
+      y: logoY - 3,
+      width: logoSize + 6,
+      height: logoSize + 6,
+      color: rgb(1, 1, 1),
+      opacity: 0.98
+    });
+    page.drawImage(logoImage, {
+      x: logoX,
+      y: logoY,
+      width: logoSize,
+      height: logoSize
+    });
+  }
 
   page.drawText("QR kodu okutarak doğrulayın", {
     x: qrX,

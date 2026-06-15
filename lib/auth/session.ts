@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { getEnv } from "@/lib/env";
+import { getJwtSecret } from "@/lib/env";
 
 const COOKIE_NAME = "heptapus_session";
 
@@ -13,7 +13,7 @@ type SessionPayload = {
 };
 
 export function signSession(payload: SessionPayload) {
-  return jwt.sign(payload, getEnv("JWT_SECRET", process.env.NEXTAUTH_SECRET), {
+  return jwt.sign(payload, getJwtSecret(), {
     expiresIn: "8h"
   });
 }
@@ -21,7 +21,7 @@ export function signSession(payload: SessionPayload) {
 export function verifySession(token?: string): SessionPayload | null {
   if (!token) return null;
   try {
-    return jwt.verify(token, getEnv("JWT_SECRET", process.env.NEXTAUTH_SECRET)) as SessionPayload;
+    return jwt.verify(token, getJwtSecret()) as SessionPayload;
   } catch {
     return null;
   }

@@ -45,6 +45,10 @@ model Document {
   originalFileHash String?
   signedFileHash   String?
   verificationToken String?            @unique
+  paperlessStatus  String?
+  paperlessTaskId  String?
+  paperlessError   String?
+  paperlessSyncedAt DateTime?
   createdById      String
   createdBy        User                @relation("CreatedDocuments", fields: [createdById], references: [id])
   signatures       DocumentSignature[]

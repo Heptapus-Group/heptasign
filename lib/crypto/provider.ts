@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { getJwtSecret } from "@/lib/env";
 
 export type SignatureRecord = {
   algorithm: string;
@@ -22,9 +23,8 @@ export class ClassicalCryptoProvider implements CryptoProvider {
   }
 
   signMetadata(data: Record<string, unknown>) {
-    const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "development-only-secret";
     const value = crypto
-      .createHmac("sha256", secret)
+      .createHmac("sha256", getJwtSecret())
       .update(JSON.stringify(data))
       .digest("hex");
 
@@ -33,7 +33,11 @@ export class ClassicalCryptoProvider implements CryptoProvider {
 
   verifyMetadata(data: Record<string, unknown>, signature: SignatureRecord) {
     const expected = this.signMetadata(data);
-    return signature.algorithm === expected.algorithm && signature.value === expected.value;
+    if (signature.algorithm !== expected.algorithm) return false;
+    // Constant-time comparison to avoid leaking the HMAC via timing.
+    const a = Buffer.from(signature.value, "utf8");
+    const b = Buffer.from(expected.value, "utf8");
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
   }
 }
 

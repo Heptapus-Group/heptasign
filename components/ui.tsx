@@ -11,11 +11,11 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-[1.65rem] font-semibold leading-tight tracking-normal text-ink">{title}</h1>
-        {description ? <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">{description}</p> : null}
+      <div className="min-w-0">
+        <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-ink">{title}</h1>
+        {description ? <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted">{description}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2.5">{actions}</div> : null}
     </div>
   );
 }
@@ -25,58 +25,81 @@ export function PageTitle(props: { title: string; description?: string }) {
 }
 
 const buttonBase =
-  "inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition duration-150 focus:outline-none focus:ring-2 focus:ring-brand/25 disabled:pointer-events-none disabled:opacity-60";
+  "inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition focus-visible:ring-4 focus-visible:ring-brand-ring disabled:pointer-events-none disabled:opacity-60";
 
 const buttonVariants = {
-  primary: "bg-brand text-white shadow-sm shadow-teal-900/10 hover:bg-brandDark",
-  secondary: "border border-line bg-white text-ink shadow-sm hover:border-slate-300 hover:bg-slate-50",
-  danger: "border border-rose-200 bg-white text-rose-700 shadow-sm hover:bg-rose-50",
-  dark: "bg-ink text-white shadow-sm shadow-slate-900/10 hover:bg-slate-800"
+  primary: "bg-brand text-white shadow-sm hover:bg-brand-dark",
+  secondary: "border border-line bg-panel text-ink shadow-sm hover:bg-canvas",
+  ghost: "text-muted hover:bg-canvas hover:text-ink",
+  danger: "border border-rose-200 bg-panel text-rose-600 shadow-sm hover:bg-rose-50",
+  dark: "bg-ink text-white shadow-sm hover:bg-ink/90"
 };
 
 export function Button({
   children,
   variant = "primary",
   type = "submit",
+  icon,
   className = ""
 }: {
   children: React.ReactNode;
   variant?: keyof typeof buttonVariants;
   type?: "button" | "submit" | "reset";
+  icon?: React.ReactNode;
   className?: string;
 }) {
-  return <button type={type} className={`${buttonBase} ${buttonVariants[variant]} ${className}`}>{children}</button>;
+  return (
+    <button type={type} className={`${buttonBase} ${buttonVariants[variant]} ${className}`}>
+      {icon}
+      {children}
+    </button>
+  );
 }
 
 export function ButtonLink({
   href,
   children,
   variant = "primary",
+  icon,
+  newTab,
   className = ""
 }: {
   href: string;
   children: React.ReactNode;
   variant?: keyof typeof buttonVariants;
+  icon?: React.ReactNode;
+  newTab?: boolean;
   className?: string;
 }) {
+  const external = newTab ? { target: "_blank", rel: "noopener noreferrer" } : {};
   return (
-    <Link href={href} className={`${buttonBase} ${buttonVariants[variant]} ${className}`}>
+    <Link href={href} className={`${buttonBase} ${buttonVariants[variant]} ${className}`} {...external}>
+      {icon}
       {children}
     </Link>
   );
 }
 
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export function Field({
+  label,
+  children,
+  hint
+}: {
+  label: string;
+  children: React.ReactNode;
+  hint?: string;
+}) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-ink">{label}</span>
+      <span className="mb-1.5 block text-[13px] font-semibold text-ink">{label}</span>
       {children}
+      {hint ? <span className="mt-1.5 block text-xs text-faint">{hint}</span> : null}
     </label>
   );
 }
 
 export const inputClass =
-  "w-full rounded-md border border-line bg-white px-3.5 py-2.5 text-sm text-ink shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/15";
+  "w-full rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm text-ink shadow-sm outline-none transition placeholder:text-faint focus:border-brand focus:ring-4 focus:ring-brand-ring";
 
 export function Card({
   children,
@@ -85,7 +108,9 @@ export function Card({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <section className={`rounded-lg border border-line/80 bg-panel shadow-sm shadow-slate-900/5 ${className}`}>{children}</section>;
+  return (
+    <section className={`rounded-xl border border-line bg-panel shadow-card ${className}`}>{children}</section>
+  );
 }
 
 export function CardHeader({
@@ -98,10 +123,10 @@ export function CardHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line/80 bg-slate-50/60 px-5 py-4">
-      <div>
-        <h2 className="font-semibold leading-6 text-ink">{title}</h2>
-        {description ? <p className="mt-1 text-sm leading-5 text-muted">{description}</p> : null}
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
+      <div className="min-w-0">
+        <h2 className="text-[15px] font-semibold tracking-tight text-ink">{title}</h2>
+        {description ? <p className="mt-1 text-sm leading-6 text-muted">{description}</p> : null}
       </div>
       {actions}
     </div>
@@ -122,26 +147,28 @@ export function Alert({
     success: "border-emerald-200 bg-emerald-50 text-emerald-800"
   };
 
-  return <div className={`rounded-md border px-3.5 py-2.5 text-sm ${tones[tone]}`}>{children}</div>;
+  return <div className={`flex items-start gap-2 rounded-lg border px-3.5 py-2.5 text-sm ${tones[tone]}`}>{children}</div>;
 }
 
 export function EmptyState({
   title,
   description,
-  action
+  action,
+  icon
 }: {
   title: string;
   description: string;
   action?: React.ReactNode;
+  icon?: React.ReactNode;
 }) {
   return (
-    <div className="px-5 py-12 text-center">
-      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-line bg-white text-sm font-semibold text-muted shadow-sm">
-        HS
+    <div className="px-6 py-14 text-center">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-line bg-canvas text-muted">
+        {icon}
       </div>
-      <h3 className="font-medium text-ink">{title}</h3>
-      <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted">{description}</p>
-      {action ? <div className="mt-4">{action}</div> : null}
+      <h3 className="text-[15px] font-semibold text-ink">{title}</h3>
+      <p className="mx-auto mt-1.5 max-w-md text-sm leading-6 text-muted">{description}</p>
+      {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
     </div>
   );
 }
@@ -149,16 +176,20 @@ export function EmptyState({
 export function MetaItem({
   label,
   value,
-  wide
+  wide,
+  mono
 }: {
   label: string;
   value: React.ReactNode;
   wide?: boolean;
+  mono?: boolean;
 }) {
   return (
     <div className={wide ? "sm:col-span-2" : ""}>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted">{label}</dt>
-      <dd className="mt-1 break-all text-sm font-medium text-ink">{value}</dd>
+      <dt className="text-[11px] font-semibold uppercase tracking-wider text-faint">{label}</dt>
+      <dd className={`mt-1.5 text-sm font-medium text-ink ${mono ? "break-all font-mono text-[13px] text-muted" : ""}`}>
+        {value}
+      </dd>
     </div>
   );
 }

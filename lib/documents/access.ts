@@ -36,15 +36,21 @@ export async function canAccessDocument(user: CurrentUser, documentId: string) {
 export async function canSignDocument(user: CurrentUser, documentId: string) {
   if (user.role === UserRole.ADMIN) return true;
 
-  const count = await prisma.document.count({
-    where: {
-      id: documentId,
-      OR: [
-        { createdById: user.id },
-        { assignments: { some: { userId: user.id, status: "PENDING" } } }
-      ]
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: {
+      createdById: true,
+      assignments: {
+        select: {
+          userId: true,
+          status: true
+        }
+      }
     }
   });
 
-  return count > 0;
+  if (!document) return false;
+  if (document.assignments.length === 0) return document.createdById === user.id;
+
+  return document.assignments.some((assignment) => assignment.userId === user.id && assignment.status === "PENDING");
 }
