@@ -1,5 +1,5 @@
 import { Alert, Field, inputClass } from "@/components/ui";
-import { HeptaMark, LockIcon, ShieldIcon, CheckIcon } from "@/components/icons";
+import { LockIcon, ShieldIcon, CheckIcon } from "@/components/icons";
 
 export default async function LoginPage({
   searchParams
@@ -13,8 +13,9 @@ export default async function LoginPage({
       {/* Brand panel */}
       <div className="relative hidden flex-col justify-between bg-sidebar p-12 text-white lg:flex">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand">
-            <HeptaMark className="h-6 w-6" />
+          <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Heptapus" className="h-7 w-7 object-contain" />
           </span>
           <span className="text-lg font-semibold tracking-tight">HeptaSign</span>
         </div>
@@ -44,8 +45,9 @@ export default async function LoginPage({
       <div className="flex items-center justify-center bg-canvas px-5 py-10">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand text-white">
-              <HeptaMark className="h-6 w-6" />
+            <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-line bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.svg" alt="Heptapus" className="h-7 w-7 object-contain" />
             </span>
           </div>
           <div className="mb-7">

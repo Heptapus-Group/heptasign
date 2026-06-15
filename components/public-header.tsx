@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { HeptaMark } from "@/components/icons";
 
 export function PublicHeader() {
   return (
     <header className="border-b border-line bg-panel">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-4">
         <Link href="/" className="flex items-center gap-2.5 text-ink">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white">
-            <HeptaMark className="h-5 w-5" />
+          <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-line bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Heptapus" className="h-6 w-6 object-contain" />
           </span>
           <span className="leading-tight">
             <span className="block text-[15px] font-semibold tracking-tight">HeptaSign</span>
