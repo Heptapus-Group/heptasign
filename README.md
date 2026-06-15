@@ -92,11 +92,12 @@ Before the first production deploy:
 4. Replace `ADMIN_EMAIL` and `ADMIN_PASSWORD`; remove or rotate the seeded password after the first login.
 5. Set `CADDY_NETWORK` to the existing Docker network used by your current Caddy container.
 6. Confirm your Caddy container is attached to that network.
-7. Run `npx prisma migrate deploy` inside the app container after each deployment.
-8. Back up both named volumes: `heptapus_sign_postgres` and `heptapus_sign_files`.
-9. Keep `.env` out of git. Commit only `.env.example`.
+7. Set `HEPTAPUS_SIGN_IMAGE` to the GHCR image for your organization, for example `ghcr.io/heptapus-group/heptapus-sign:latest`.
+8. Run `npx prisma migrate deploy` inside the app container after each deployment.
+9. Back up both named volumes: `heptapus_sign_postgres` and `heptapus_sign_files`.
+10. Keep `.env` out of git. Commit only `.env.example`.
 
-Production deploy command sequence:
+Production deploy command sequence when building directly on the server:
 
 ```bash
 docker compose up -d --build
@@ -104,7 +105,16 @@ docker compose exec heptapus-sign-app npx prisma migrate deploy
 docker compose exec heptapus-sign-app npm run prisma:seed
 ```
 
-The app listens on port `3000` inside Docker. The production compose file does not publish the app to the host; your existing Caddy reverse proxy should reach `heptapus-sign-app:3000` over the external Docker network.
+For low-resource servers, do not build on the server. Use the GitHub Actions workflow in `.github/workflows/docker.yml` to publish an image to GitHub Container Registry, then deploy with:
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml exec heptapus-sign-app npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml exec heptapus-sign-app npm run prisma:seed
+```
+
+The app listens on port `3000` inside Docker. The production compose files do not publish the app to the host; your existing Caddy reverse proxy should reach `heptapus-sign-app:3000` over the external Docker network.
 
 ## Existing Caddy integration
 
@@ -129,6 +139,14 @@ gh repo create "Heptapus Group/heptapus-sign" --private --source . --remote orig
 ```
 
 If the organization slug is different from the display name, use the slug shown in the GitHub organization URL.
+
+After the first push to `main`, GitHub Actions publishes:
+
+```text
+ghcr.io/<organization-slug>/heptapus-sign:latest
+```
+
+Use that value as `HEPTAPUS_SIGN_IMAGE` on the production server.
 
 ## Notes
 

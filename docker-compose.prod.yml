@@ -1,0 +1,49 @@
+services:
+  heptapus-sign-app:
+    image: ${HEPTAPUS_SIGN_IMAGE:-ghcr.io/heptapus-group/heptapus-sign:latest}
+    container_name: heptapus-sign-app
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://heptapus_sign:heptapus_sign@postgres:5432/heptapus_sign?schema=public}
+      STORAGE_PATH: /app/storage
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - heptapus_sign_files:/app/storage
+    networks:
+      - heptapus_sign_internal
+      - caddy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: heptapus-sign-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-heptapus_sign}
+      POSTGRES_USER: ${POSTGRES_USER:-heptapus_sign}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-heptapus_sign}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-heptapus_sign} -d ${POSTGRES_DB:-heptapus_sign}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - heptapus_sign_postgres:/var/lib/postgresql/data
+    networks:
+      - heptapus_sign_internal
+
+volumes:
+  heptapus_sign_postgres:
+  heptapus_sign_files:
+
+networks:
+  heptapus_sign_internal:
+    name: heptapus_sign_internal
+  caddy:
+    external: true
+    name: ${CADDY_NETWORK:-caddy}
