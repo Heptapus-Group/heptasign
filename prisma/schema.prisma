@@ -45,6 +45,7 @@ model Document {
   originalFileHash String?
   signedFileHash   String?
   verificationToken String?            @unique
+  sequentialSigning Boolean            @default(false)
   paperlessStatus  String?
   paperlessTaskId  String?
   paperlessError   String?
@@ -82,6 +83,11 @@ model DocumentAssignment {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignedById String?
   status     String    @default("PENDING")
+  order      Int       @default(0)
+  signerName String?
+  signerRole String?
+  ipAddress  String?
+  userAgent  String?
   signedAt   DateTime?
   createdAt  DateTime  @default(now())
 

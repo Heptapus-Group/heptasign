@@ -3,7 +3,8 @@ import { UserRole } from "@prisma/client";
 import { AppShell } from "@/components/shell";
 import { Alert, Button, ButtonLink, Card, CardHeader, EmptyState, Field, MetaItem, PageHeader } from "@/components/ui";
 import { StatusBadge } from "@/components/status-badge";
-import { PenIcon, FileIcon, DownloadIcon, UsersIcon, PlusIcon, CheckIcon, ArchiveIcon } from "@/components/icons";
+import { PenIcon, FileIcon, DownloadIcon, UsersIcon, PlusIcon, CheckIcon, ArchiveIcon, TrashIcon } from "@/components/icons";
+import { ConfirmForm } from "@/components/confirm-form";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { canAccessDocument, canSignDocument } from "@/lib/documents/access";
@@ -11,7 +12,8 @@ import { canAccessDocument, canSignDocument } from "@/lib/documents/access";
 const errorMessages: Record<string, string> = {
   forbidden: "Only the document creator or an admin can revoke this document.",
   "not-revocable": "Only a signed document can be revoked.",
-  "no-signed-pdf": "This document has no signed PDF to archive yet."
+  "no-signed-pdf": "This document has no signed PDF to archive yet.",
+  "delete-forbidden": "You can only delete your own draft documents. Signed documents can be deleted by an admin."
 };
 
 export default async function DocumentDetailPage({
@@ -31,7 +33,7 @@ export default async function DocumentDetailPage({
       signatures: { orderBy: { signedAt: "desc" } },
       assignments: {
         include: { user: { select: { name: true, email: true, title: true } } },
-        orderBy: { createdAt: "asc" }
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }]
       }
     }
   });
@@ -39,7 +41,10 @@ export default async function DocumentDetailPage({
   const canManageAssignments = user.role === UserRole.ADMIN || document.createdById === user.id;
   const canSign = document.status === "DRAFT" && (await canSignDocument(user, document.id));
   const canRevoke = document.status === "SIGNED" && canManageAssignments;
+  const canDelete = user.role === UserRole.ADMIN || (document.createdById === user.id && document.status === "DRAFT");
   const canSyncPaperless = Boolean(document.signedFilePath) && canManageAssignments;
+  const signedCount = document.assignments.filter((a) => a.status === "SIGNED").length;
+  const totalSigners = document.assignments.length;
   const assignedIds = new Set(document.assignments.map((assignment) => assignment.userId));
   const assignableUsers = canManageAssignments
     ? await prisma.user.findMany({
@@ -126,10 +131,27 @@ export default async function DocumentDetailPage({
                 </Button>
               </form>
             ) : null}
-            {canRevoke ? (
-              <form action={`/api/documents/${document.id}/revoke`} method="post" className="ml-auto">
-                <Button variant="danger">Revoke</Button>
-              </form>
+            {canRevoke || canDelete ? (
+              <div className="ml-auto flex flex-wrap gap-3">
+                {canRevoke ? (
+                  <ConfirmForm
+                    action={`/api/documents/${document.id}/revoke`}
+                    message={`Revoke ${document.documentCode}? Its verification record will be marked revoked.`}
+                  >
+                    <Button variant="danger">Revoke</Button>
+                  </ConfirmForm>
+                ) : null}
+                {canDelete ? (
+                  <ConfirmForm
+                    action={`/api/documents/${document.id}/delete`}
+                    message={`Permanently delete ${document.documentCode}? This removes the document, its files, and all signature records. This cannot be undone.`}
+                  >
+                    <Button variant="danger" icon={<TrashIcon className="h-[18px] w-[18px]" />}>
+                      Delete
+                    </Button>
+                  </ConfirmForm>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </Card>
@@ -163,7 +185,14 @@ export default async function DocumentDetailPage({
           </Card>
 
           <Card className="overflow-hidden">
-            <CardHeader title="Assigned signers" description="People who can access this document for approval." />
+            <CardHeader
+              title="Assigned signers"
+              description={
+                totalSigners > 0
+                  ? `${signedCount}/${totalSigners} signed · ${document.sequentialSigning ? "Sequential order" : "Any order"}`
+                  : "People who can access this document for approval."
+              }
+            />
             {document.assignments.length === 0 ? (
               <EmptyState
                 icon={<UsersIcon className="h-5 w-5" />}
@@ -171,10 +200,13 @@ export default async function DocumentDetailPage({
                 description="Only the creator and admins can access this draft."
               />
             ) : (
-              <ul className="divide-y divide-line">
-                {document.assignments.map((assignment) => (
-                  <li key={assignment.id} className="flex items-start justify-between gap-3 p-5">
-                    <div className="min-w-0">
+              <ol className="divide-y divide-line">
+                {document.assignments.map((assignment, index) => (
+                  <li key={assignment.id} className="flex items-center gap-3 p-5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-canvas text-xs font-semibold text-muted">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
                       <div className="font-medium text-ink">{assignment.user.name}</div>
                       <div className="truncate text-sm text-muted">
                         {assignment.user.title || "No title"} · {assignment.user.email}
@@ -183,7 +215,7 @@ export default async function DocumentDetailPage({
                     <StatusBadge status={assignment.status} />
                   </li>
                 ))}
-              </ul>
+              </ol>
             )}
             {canManageAssignments ? (
               <form action={`/api/documents/${document.id}/assign`} method="post" className="border-t border-line p-5">

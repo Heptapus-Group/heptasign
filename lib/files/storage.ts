@@ -47,3 +47,12 @@ export async function readStoredFile(relativePath: string) {
   if (!fullPath.startsWith(root)) throw new Error("Invalid file path.");
   return fs.readFile(fullPath);
 }
+
+export async function deleteStoredFile(relativePath?: string | null) {
+  if (!relativePath || relativePath === "pending") return;
+  const fullPath = path.resolve(getStoragePath(), relativePath);
+  const root = path.resolve(getStoragePath());
+  if (!fullPath.startsWith(root)) throw new Error("Invalid file path.");
+  // force: ignore the file already being gone.
+  await fs.rm(fullPath, { force: true });
+}

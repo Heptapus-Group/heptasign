@@ -60,10 +60,20 @@ export default async function NewDocumentPage({
             />
           </Field>
           <div>
-            <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-ink">
-              <UsersIcon className="h-4 w-4 text-muted" />
-              Send for signature
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+                <UsersIcon className="h-4 w-4 text-muted" />
+                Send for signature
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
+                <input type="checkbox" name="sequentialSigning" value="true" className="h-4 w-4 rounded accent-brand" />
+                Sequential signing (in order)
+              </label>
             </div>
+            <p className="mb-2 text-xs text-faint">
+              When sequential is on, each person can only sign after everyone with a lower order number. Set the order
+              per signer; leave blank to use the listed order.
+            </p>
             <div className="scroll-area max-h-60 space-y-2 overflow-y-auto rounded-lg border border-line bg-canvas p-2.5">
               {users.length === 0 ? (
                 <p className="px-1 py-2 text-sm text-muted">No other users yet. Add users from Users.</p>
@@ -71,20 +81,28 @@ export default async function NewDocumentPage({
               {users.map((item) => (
                 <label
                   key={item.id}
-                  className="flex cursor-pointer items-start gap-3 rounded-lg border border-transparent bg-panel p-3 text-sm shadow-sm transition hover:border-brand/30"
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-transparent bg-panel p-3 text-sm shadow-sm transition hover:border-brand/30"
                 >
                   <input
                     name="assignedUserIds"
                     value={item.id}
                     type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded accent-brand"
+                    className="h-4 w-4 rounded accent-brand"
                   />
-                  <span className="min-w-0">
+                  <span className="min-w-0 flex-1">
                     <span className="block font-medium text-ink">{item.name}</span>
                     <span className="block truncate text-muted">
                       {item.title || "No title"} · {item.email}
                     </span>
                   </span>
+                  <input
+                    type="number"
+                    min={1}
+                    name={`order_${item.id}`}
+                    placeholder="#"
+                    title="Signing order"
+                    className="w-14 rounded-md border border-line bg-panel px-2 py-1.5 text-center text-sm text-ink shadow-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand-ring"
+                  />
                 </label>
               ))}
             </div>

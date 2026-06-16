@@ -13,7 +13,15 @@ export async function POST(request: NextRequest) {
   const title = String(form.get("title") || "").trim();
   const description = String(form.get("description") || "").trim() || null;
   const assignedUserIds = form.getAll("assignedUserIds").map((value) => String(value)).filter(Boolean);
+  const sequentialSigning = String(form.get("sequentialSigning") || "") === "true";
   const file = form.get("file");
+
+  // Signing order: use the per-user "order_<id>" field when provided, otherwise
+  // fall back to the order the users appear in the form.
+  const orderFor = (userId: string, fallback: number) => {
+    const raw = Number(form.get(`order_${userId}`));
+    return Number.isFinite(raw) && raw > 0 ? raw : fallback + 1;
+  };
 
   if (!documentCode || !title || !(file instanceof File)) {
     return redirectTo("/documents/new?error=missing");
@@ -26,12 +34,14 @@ export async function POST(request: NextRequest) {
         documentCode,
         title,
         description,
+        sequentialSigning,
         originalFilePath: "pending",
         createdById: user.id,
         assignments: {
-          create: assignedUserIds.map((assignedUserId) => ({
+          create: assignedUserIds.map((assignedUserId, index) => ({
             userId: assignedUserId,
-            assignedById: user.id
+            assignedById: user.id,
+            order: orderFor(assignedUserId, index)
           }))
         }
       }

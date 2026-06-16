@@ -16,78 +16,152 @@ type SignInput = {
   userAgent?: string | null;
 };
 
-export async function signDocument(input: SignInput) {
-  const document = await prisma.document.findUnique({ where: { id: input.documentId } });
+export type SignResult = { finalized: boolean };
+
+export async function signDocument(input: SignInput): Promise<SignResult> {
+  const document = await prisma.document.findUnique({
+    where: { id: input.documentId },
+    include: { assignments: { orderBy: [{ order: "asc" }, { createdAt: "asc" }] } }
+  });
   if (!document) throw new Error("Document not found.");
   if (document.status !== DocumentStatus.DRAFT) throw new Error("Only draft documents can be signed.");
 
-  const originalPdf = await readStoredFile(document.originalFilePath);
-  const originalFileHash = cryptoProvider.hashSha256(originalPdf);
-  const verificationToken = cryptoProvider.createVerificationToken();
-  const verificationUrl = `${getAppUrl()}/verify/${verificationToken}`;
+  const assignments = document.assignments;
   const signedAt = new Date();
 
-  const signedPdf = await stampSignedPdf({
-    originalPdf,
-    documentCode: document.documentCode,
-    signerName: input.signerName,
-    signerRole: input.signerRole,
-    signedAt,
-    verificationUrl
-  });
+  if (assignments.length > 0) {
+    const myIndex = assignments.findIndex((a) => a.userId === input.userId);
+    if (myIndex === -1) throw new Error("Bu belgeyi imzalamak için atanmadınız.");
+    const mine = assignments[myIndex];
+    if (mine.status === "SIGNED") throw new Error("Bu belgeyi zaten imzaladınız.");
+    if (document.sequentialSigning && assignments.slice(0, myIndex).some((a) => a.status !== "SIGNED")) {
+      throw new Error("Sıra sizde değil. Önceki imzacılar henüz imzalamadı.");
+    }
 
-  const signed = await saveSignedPdf(document.id, signedPdf);
-
-  const result = await prisma.$transaction(async (tx) => {
-    const updatedDocument = await tx.document.update({
-      where: { id: document.id },
+    // Record this signer on their assignment (idempotent guard against double-submit).
+    const claimed = await prisma.documentAssignment.updateMany({
+      where: { id: mine.id, status: "PENDING" },
       data: {
-        status: DocumentStatus.SIGNED,
-        originalFileHash,
-        signedFileHash: signed.hash,
-        signedFilePath: signed.relativePath,
-        verificationToken
-      }
-    });
-
-    await tx.documentFile.create({
-      data: {
-        documentId: document.id,
-        kind: "SIGNED",
-        filePath: signed.relativePath,
-        fileHash: signed.hash
-      }
-    });
-
-    await tx.documentSignature.create({
-      data: {
-        documentId: document.id,
-        signedById: input.userId,
-        signedByName: input.signerName,
-        signedByRole: input.signerRole,
+        status: "SIGNED",
         signedAt,
-        ipAddress: input.ipAddress,
-        userAgent: input.userAgent,
-        originalFileHash,
-        signedFileHash: signed.hash,
-        verificationToken
+        signerName: input.signerName,
+        signerRole: input.signerRole,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null
       }
     });
-
-    await tx.documentAssignment.updateMany({
-      where: { documentId: document.id, userId: input.userId },
-      data: { status: "SIGNED", signedAt }
-    });
-
-    return updatedDocument;
-  });
+    if (claimed.count === 0) throw new Error("Bu belgeyi zaten imzaladınız.");
+  } else if (document.createdById !== input.userId) {
+    throw new Error("Bu belgeyi imzalama yetkiniz yok.");
+  }
 
   await writeAuditLog({
     userId: input.userId,
     action: "document.signed",
     entityType: "Document",
     entityId: document.id,
-    metadata: { documentCode: document.documentCode, verificationToken },
+    metadata: { documentCode: document.documentCode },
+    ipAddress: input.ipAddress,
+    userAgent: input.userAgent
+  });
+
+  // Build the ordered list of signers and decide whether the document is complete.
+  let signers: { userId: string; name: string; role: string; signedAt: Date; ipAddress: string | null; userAgent: string | null }[];
+  if (assignments.length > 0) {
+    const fresh = await prisma.documentAssignment.findMany({
+      where: { documentId: document.id },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }]
+    });
+    if (!fresh.every((a) => a.status === "SIGNED")) {
+      // More signatures still pending — keep the document open, do not finalize.
+      return { finalized: false };
+    }
+    signers = fresh.map((a) => ({
+      userId: a.userId,
+      name: a.signerName || "—",
+      role: a.signerRole || "",
+      signedAt: a.signedAt || signedAt,
+      ipAddress: a.ipAddress,
+      userAgent: a.userAgent
+    }));
+  } else {
+    signers = [
+      {
+        userId: input.userId,
+        name: input.signerName,
+        role: input.signerRole,
+        signedAt,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null
+      }
+    ];
+  }
+
+  // Finalize: stamp the PDF with every signer and lock the document.
+  const originalPdf = await readStoredFile(document.originalFilePath);
+  const originalFileHash = cryptoProvider.hashSha256(originalPdf);
+  const verificationToken = cryptoProvider.createVerificationToken();
+  const verificationUrl = `${getAppUrl()}/verify/${verificationToken}`;
+  const finalizedAt = new Date();
+
+  const signedPdf = await stampSignedPdf({
+    originalPdf,
+    documentCode: document.documentCode,
+    signers: signers.map((s) => ({ name: s.name, role: s.role, signedAt: s.signedAt })),
+    signedAt: finalizedAt,
+    verificationUrl
+  });
+
+  const signed = await saveSignedPdf(document.id, signedPdf);
+
+  // Guard so concurrent last signatures cannot finalize twice.
+  const claim = await prisma.document.updateMany({
+    where: { id: document.id, status: DocumentStatus.DRAFT },
+    data: {
+      status: DocumentStatus.SIGNED,
+      originalFileHash,
+      signedFileHash: signed.hash,
+      signedFilePath: signed.relativePath,
+      verificationToken
+    }
+  });
+  if (claim.count === 0) {
+    // Another request already finalized this document.
+    return { finalized: true };
+  }
+
+  await prisma.documentFile.create({
+    data: {
+      documentId: document.id,
+      kind: "SIGNED",
+      filePath: signed.relativePath,
+      fileHash: signed.hash
+    }
+  });
+
+  for (const signer of signers) {
+    await prisma.documentSignature.create({
+      data: {
+        documentId: document.id,
+        signedById: signer.userId,
+        signedByName: signer.name,
+        signedByRole: signer.role,
+        signedAt: signer.signedAt,
+        ipAddress: signer.ipAddress,
+        userAgent: signer.userAgent,
+        originalFileHash,
+        signedFileHash: signed.hash,
+        verificationToken: cryptoProvider.createVerificationToken()
+      }
+    });
+  }
+
+  await writeAuditLog({
+    userId: input.userId,
+    action: "document.finalized",
+    entityType: "Document",
+    entityId: document.id,
+    metadata: { documentCode: document.documentCode, verificationToken, signers: signers.length },
     ipAddress: input.ipAddress,
     userAgent: input.userAgent
   });
@@ -102,7 +176,7 @@ export async function signDocument(input: SignInput) {
     userAgent: input.userAgent
   });
 
-  return result;
+  return { finalized: true };
 }
 
 export async function syncSignedDocumentToPaperless(input: {

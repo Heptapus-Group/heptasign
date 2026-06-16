@@ -24,11 +24,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const assignedUserIds = form.getAll("assignedUserIds").map((value) => String(value)).filter(Boolean);
 
   if (assignedUserIds.length > 0) {
+    // Append late additions after the existing signers in the order chain.
+    const last = await prisma.documentAssignment.findFirst({
+      where: { documentId: id },
+      orderBy: { order: "desc" },
+      select: { order: true }
+    });
+    const baseOrder = last?.order ?? 0;
+
     await prisma.documentAssignment.createMany({
-      data: assignedUserIds.map((assignedUserId) => ({
+      data: assignedUserIds.map((assignedUserId, index) => ({
         documentId: id,
         userId: assignedUserId,
-        assignedById: user.id
+        assignedById: user.id,
+        order: baseOrder + index + 1
       })),
       skipDuplicates: true
     });

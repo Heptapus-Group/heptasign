@@ -5,11 +5,16 @@ import { PDFDocument, rgb } from "pdf-lib";
 import { generateCode128Png } from "@/lib/barcode/barcode";
 import { generateQrPng } from "@/lib/qr/qr";
 
+type StampSigner = {
+  name: string;
+  role: string;
+  signedAt: Date;
+};
+
 type StampInput = {
   originalPdf: Buffer;
   documentCode: string;
-  signerName: string;
-  signerRole: string;
+  signers: StampSigner[];
   signedAt: Date;
   verificationUrl: string;
 };
@@ -225,8 +230,10 @@ export async function stampSignedPdf(input: StampInput) {
     color: textColor
   });
 
+  const signerCount = Math.max(1, input.signers.length);
+  const signerRowHeight = 26;
   const panelTop = height - 220;
-  const panelHeight = 176;
+  const panelHeight = 96 + signerCount * signerRowHeight;
   page.drawRectangle({
     x: margin,
     y: panelTop - panelHeight,
@@ -237,17 +244,15 @@ export async function stampSignedPdf(input: StampInput) {
     borderWidth: 1
   });
 
-  const rows = [
-    ["Belge Kodu", input.documentCode],
-    ["İmzalayan", input.signerName],
-    ["Unvan / Rol", input.signerRole],
-    ["İmza Tarihi", input.signedAt.toISOString()]
-  ];
   const labelX = margin + 20;
   const valueX = margin + 150;
-  let y = panelTop - 34;
+  let y = panelTop - 32;
 
-  for (const [label, value] of rows) {
+  const headerRows = [
+    ["Belge Kodu", input.documentCode],
+    ["Onay Tarihi", input.signedAt.toISOString()]
+  ];
+  for (const [label, value] of headerRows) {
     page.drawText(label, { x: labelX, y, font: bold, size: 9.5, color: mutedColor });
     page.drawText(value, {
       x: valueX,
@@ -257,20 +262,41 @@ export async function stampSignedPdf(input: StampInput) {
       color: textColor,
       maxWidth: width - valueX - margin - 20
     });
-    y -= 28;
+    y -= 26;
   }
 
-  page.drawText("Doğrulama Bağlantısı", { x: labelX, y, font: bold, size: 9.5, color: mutedColor });
+  page.drawText(`İmzalayanlar (${input.signers.length})`, { x: labelX, y, font: bold, size: 9.5, color: mutedColor });
+  y -= 20;
+  input.signers.forEach((signer, index) => {
+    const heading = `${index + 1}. ${signer.name}${signer.role ? ` — ${signer.role}` : ""}`;
+    page.drawText(heading, {
+      x: labelX + 6,
+      y,
+      font: bold,
+      size: 9.5,
+      color: textColor,
+      maxWidth: contentWidth - 50
+    });
+    page.drawText(signer.signedAt.toISOString(), {
+      x: labelX + 6,
+      y: y - 11,
+      font,
+      size: 7.5,
+      color: mutedColor
+    });
+    y -= signerRowHeight;
+  });
+
   drawWrappedText({
     page,
-    text: input.verificationUrl,
-    x: valueX,
-    y,
-    maxWidth: width - valueX - margin - 20,
+    text: `Doğrulama: ${input.verificationUrl}`,
+    x: labelX,
+    y: panelTop - panelHeight - 16,
+    maxWidth: contentWidth,
     font,
     size: 8.5,
     lineHeight: 11,
-    color: textColor
+    color: mutedColor
   });
 
   const qrX = margin + 22;

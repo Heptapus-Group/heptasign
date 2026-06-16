@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { DocumentStatus, Prisma } from "@prisma/client";
 import { AppShell } from "@/components/shell";
-import { Button, ButtonLink, Card, EmptyState, PageHeader, inputClass } from "@/components/ui";
+import { Alert, Button, ButtonLink, Card, EmptyState, PageHeader, inputClass } from "@/components/ui";
 import { StatusBadge } from "@/components/status-badge";
-import { SearchIcon, PlusIcon, FileIcon } from "@/components/icons";
+import { SearchIcon, PlusIcon, FileIcon, TrashIcon } from "@/components/icons";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser } from "@/lib/auth/session";
 import { visibleDocumentWhere } from "@/lib/documents/access";
@@ -11,7 +11,7 @@ import { visibleDocumentWhere } from "@/lib/documents/access";
 export default async function DocumentsPage({
   searchParams
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; deleted?: string }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
@@ -45,6 +45,15 @@ export default async function DocumentsPage({
           </ButtonLink>
         }
       />
+
+      {params.deleted ? (
+        <div className="mb-5">
+          <Alert tone="success">
+            <TrashIcon className="h-4 w-4 shrink-0" />
+            Document deleted.
+          </Alert>
+        </div>
+      ) : null}
 
       <form className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
