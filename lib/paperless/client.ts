@@ -20,6 +20,46 @@ function getPaperlessTags() {
     .filter(Boolean);
 }
 
+function getPaperlessCorrespondent() {
+  return (process.env.PAPERLESS_CORRESPONDENT || "Heptapus").trim();
+}
+
+type PaperlessListResponse = { count: number; results: { id: number; name: string }[] };
+
+/**
+ * Paperless' `post_document` endpoint expects numeric primary keys for
+ * `correspondent` and `tags`, not names. This resolves a name to its id,
+ * creating the object if it does not exist yet.
+ *
+ * `resource` is "correspondents" or "tags".
+ */
+async function resolveId(baseUrl: string, token: string, resource: string, name: string): Promise<number> {
+  const headers = { Authorization: `Token ${token}` };
+
+  const lookup = await fetch(
+    `${baseUrl}/api/${resource}/?name__iexact=${encodeURIComponent(name)}`,
+    { headers }
+  );
+  if (lookup.ok) {
+    const data = (await lookup.json()) as PaperlessListResponse;
+    const match = data.results?.find((item) => item.name.toLowerCase() === name.toLowerCase());
+    if (match) return match.id;
+    if (data.results?.length) return data.results[0].id;
+  }
+
+  const created = await fetch(`${baseUrl}/api/${resource}/`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  });
+  if (!created.ok) {
+    const body = await created.text();
+    throw new Error(`Paperless ${resource} lookup/create failed (${created.status}): ${body.slice(0, 300)}`);
+  }
+  const createdData = (await created.json()) as { id: number };
+  return createdData.id;
+}
+
 export async function uploadSignedPdfToPaperless(input: PaperlessUploadInput) {
   if (!isPaperlessEnabled()) {
     return { skipped: true as const };
@@ -34,11 +74,17 @@ export async function uploadSignedPdfToPaperless(input: PaperlessUploadInput) {
   const pdfBytes = new Uint8Array(input.pdf);
   form.set("document", new Blob([pdfBytes.buffer], { type: "application/pdf" }), input.filename);
   form.set("title", `${input.documentCode} - ${input.title}`);
-  form.set("correspondent", "Heptapus");
 
-  const tags = getPaperlessTags();
-  for (const tag of tags) {
-    form.append("tags", tag);
+  // Resolve names to primary keys; Paperless rejects name strings here.
+  const correspondentName = getPaperlessCorrespondent();
+  if (correspondentName) {
+    const correspondentId = await resolveId(baseUrl, token, "correspondents", correspondentName);
+    form.set("correspondent", String(correspondentId));
+  }
+
+  for (const tagName of getPaperlessTags()) {
+    const tagId = await resolveId(baseUrl, token, "tags", tagName);
+    form.append("tags", String(tagId));
   }
 
   const response = await fetch(`${baseUrl}/api/documents/post_document/`, {

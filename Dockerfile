@@ -29,4 +29,9 @@ RUN mkdir -p /app/storage/originals /app/storage/signed && chown -R nextjs:nodej
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
+# Bind to all interfaces so the app is reachable across every Docker network it
+# joins. Without this, Next's standalone server binds only to the container
+# hostname's single IP, causing "connection refused" from a reverse proxy that
+# reaches the container over a different network.
+ENV HOSTNAME=0.0.0.0
 CMD ["node", "server.js"]
